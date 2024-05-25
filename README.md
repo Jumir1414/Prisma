@@ -1,2 +1,1 @@
-// to start project
-- npm start
+To start project - npm start
