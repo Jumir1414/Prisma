@@ -1,4 +1,3 @@
-import { error } from "console";
 import { HttpException, HttpStatusErrorCode } from "./root";
 
 export class InternalException extends HttpException {

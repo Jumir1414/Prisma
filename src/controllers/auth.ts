@@ -5,9 +5,7 @@ import { JWT_SECRET } from "../secrets";
 import { BadRequestsException } from "../exceptions/bad-requests";
 import { HttpStatusErrorCode } from "../exceptions/root";
 import { prismaClient } from "..";
-import { UnprocessableEntity } from "../exceptions/validation";
 import { LoginSchema, SignUpSchema } from "../schema/users";
-import { z } from "zod";
 export const signUp = async (
   req: Request,
   res: Response,
