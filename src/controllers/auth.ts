@@ -1,11 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import { prismaClient } from "../routes";
 import { hashSync, compareSync } from "bcrypt";
 import * as jwt from "jsonwebtoken";
 import { JWT_SECRET } from "../secrets";
 import { BadRequestsException } from "../exceptions/bad-requests";
 import { HttpStatusErrorCode } from "../exceptions/root";
-
+import { prismaClient } from "..";
+import { UnprocessableEntity } from "../exceptions/validation";
+import { LoginSchema, SignUpSchema } from "../schema/users";
+import { z } from "zod";
 export const signUp = async (
   req: Request,
   res: Response,
@@ -15,6 +17,7 @@ export const signUp = async (
 
   try {
     // Check if the user already exists
+    SignUpSchema.parse(req.body);
     let user = await prismaClient.user.findFirst({ where: { email } });
     if (user) {
       return next(
@@ -35,9 +38,17 @@ export const signUp = async (
     });
 
     res.json(user);
-  } catch (error) {
+  } catch (error: any) {
     // Pass any error to the next middleware
-    next(error);
+    if (error instanceof z.ZodError) {
+      return next(
+        new UnprocessableEntity(
+          error.errors,
+          "unprocessable entity",
+          HttpStatusErrorCode.UNPROCESSABLE_ENTITY
+        )
+      );
+    }
   }
 };
 export const login = async (
@@ -46,29 +57,42 @@ export const login = async (
   next: NextFunction
 ) => {
   const { email, password } = req.body;
-  let user = await prismaClient.user.findFirst({ where: { email } });
-  if (!user) {
-    return next(
-      new BadRequestsException(
-        "User not found",
-        HttpStatusErrorCode.BAD_REQUEST
-      )
+  try {
+    LoginSchema.parse(req.body);
+    let user = await prismaClient.user.findFirst({ where: { email } });
+    if (!user) {
+      return next(
+        new BadRequestsException(
+          "User not found",
+          HttpStatusErrorCode.BAD_REQUEST
+        )
+      );
+    }
+    if (!compareSync(password, user?.password)) {
+      return next(
+        new BadRequestsException(
+          "Incorrect password",
+          HttpStatusErrorCode.FORBIDDEN
+        )
+      );
+    }
+    const token = jwt.sign(
+      {
+        userId: user.id,
+      },
+      JWT_SECRET
     );
-  }
-  if (!compareSync(password, user?.password)) {
-    return next(
-      new BadRequestsException(
-        "Incorrect password",
-        HttpStatusErrorCode.FORBIDDEN
-      )
-    );
-  }
-  const token = jwt.sign(
-    {
-      userId: user.id,
-    },
-    JWT_SECRET
-  );
 
-  res.json({ user, token });
+    res.json({ user, token });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return next(
+        new UnprocessableEntity(
+          error.errors,
+          "unprocessable entity",
+          HttpStatusErrorCode.UNPROCESSABLE_ENTITY
+        )
+      );
+    }
+  }
 };
