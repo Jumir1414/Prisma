@@ -6,6 +6,7 @@ import { BadRequestsException } from "../exceptions/bad-requests";
 import { HttpStatusErrorCode } from "../exceptions/root";
 import { prismaClient } from "..";
 import { LoginSchema, SignUpSchema } from "../schema/users";
+import { CustomRequest } from "../types/customRequest";
 export const signUp = async (
   req: Request,
   res: Response,
@@ -66,4 +67,8 @@ export const login = async (
   );
 
   res.json({ user, token });
+};
+
+export const profile = async (req: CustomRequest, res: Response) => {
+  res.json(req.user);
 };
